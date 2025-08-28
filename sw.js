@@ -1,4 +1,4 @@
-const cacheName = "mcq-app-v1.101";
+const cacheName = "mcq-app-v1.2";
 const staticFiles = [
   "./",
   "./index.html",

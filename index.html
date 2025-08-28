@@ -215,7 +215,7 @@ scrollBtn.style.right = '0';
 scrollBtn.style.background = '#6a1b9a'; // purple tone
 scrollBtn.style.color = '#fff';
 scrollBtn.style.border = 'none';
-scrollBtn.style.padding = '8px 12px';
+scrollBtn.style.padding = '7px 10px';
 scrollBtn.style.cursor = 'pointer';
 scrollBtn.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
 scrollBtn.style.borderTopLeftRadius = '10px';
@@ -226,7 +226,7 @@ document.body.appendChild(scrollBtn);
 
 // Detect scroll position to toggle label
 function updateBtnLabel() {
-  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 10) {
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) {
     // At bottom → show "↑ Top"
     scrollBtn.textContent = '↑ Top';
   } else {

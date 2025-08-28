@@ -151,10 +151,10 @@ body {
 .counter {
     position: fixed;
     font-weight: bold;
-    bottom: 50px;
-    left: 0px;
+    bottom: 100px;
+    left: px;
     background: #6a1b9a;
-    padding: 8px 12px;
+    padding: 5px 8px;
     border-radius: 8px;
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;

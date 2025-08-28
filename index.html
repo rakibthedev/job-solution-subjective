@@ -180,10 +180,11 @@ function renderPagination(page){
   prevBtn.addEventListener('click',()=>{currentPage--; renderPage(currentPage);});
   paginationDiv.appendChild(prevBtn);
 
-  // Pages (show 2 before, current, 2 after)
-  let start=Math.max(1, page-2);
-  let end=Math.min(totalPages, page+2);
+  // Pages (show 1 before, current, 1 after)
+  let start=Math.max(1, page-1);
+  let end=Math.min(totalPages, page+1);
   for(let i=start; i<=end; i++){ addPageBtn(i); }
+
 
   // Next button
   const nextBtn=document.createElement('button');
@@ -241,7 +242,7 @@ scrollBtn.style.right = '0';
 scrollBtn.style.background = '#6a1b9a'; // purple tone
 scrollBtn.style.color = '#fff';
 scrollBtn.style.border = 'none';
-scrollBtn.style.padding = '7px 10px';
+scrollBtn.style.padding = '6px 10px';
 scrollBtn.style.cursor = 'pointer';
 scrollBtn.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
 scrollBtn.style.borderTopLeftRadius = '10px';

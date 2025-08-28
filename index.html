@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCQ Exam App</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link rel="shortcut icon" href="icons/icon-192.png" type="image/x-icon">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="hamburger" id="hamburger"><i class="fas fa-bars"></i></div>
+
+<div class="container-wrapper">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main-container">
+    <div id="headerDiv" class="header"></div>
+    <div id="questions"></div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<div class="counter" id="counter">R: 0 | W: 0</div>
+
+<script>
+const mcqs = {
+  "বাংলা সাহিত্য":"./mcq/bangla_sahitto.json",
+  "বাংলা ভাষা ও ব্যাকরণ":"./mcq/bangla_bakoron.json",
+};
+
+let data={header:[],questions:[]}, currentPage=1, right=0, wrong=0;
+const perPage=50;
+
+const sidebar=document.getElementById('sidebar');
+const headerDiv=document.getElementById('headerDiv');
+const questionsDiv=document.getElementById('questions');
+const paginationDiv=document.getElementById('pagination');
+const counterDiv=document.getElementById('counter');
+const hamburger=document.getElementById('hamburger');
+
+// Hamburger toggle
+hamburger.addEventListener('click',()=>{ sidebar.classList.toggle('show'); });
+
+// Build sidebar
+for(let exam in mcqs){
+  const div=document.createElement('div');
+  div.textContent=exam;
+  div.addEventListener('click', ()=>{
+    if(div.classList.contains("active")) return;
+    document.querySelectorAll('.sidebar div').forEach(d=>d.classList.remove('active'));
+    div.classList.add('active');
+    loadExam(mcqs[exam]);
+    if(window.innerWidth<=700) sidebar.classList.remove('show');
+  });
+  sidebar.appendChild(div);
+}
+
+// Load first exam onload
+window.addEventListener('DOMContentLoaded',()=>{
+  const firstExam=Object.keys(mcqs)[0];
+  document.querySelector('.sidebar div').classList.add('active');
+  loadExam(mcqs[firstExam]);
+});
+
+function loadExam(file){
+  fetch(file)
+    .then(res=>res.json())
+    .then(json=>{
+      const firstHeaderObj=json.find(item=>item.header);
+      const header=firstHeaderObj?.header||[];
+      const questions=json.filter(item=>item.label);
+      data={header,questions};
+      currentPage=1; right=0; wrong=0;
+      counterDiv.textContent=`R: ${right} | W: ${wrong}`;
+      headerDiv.innerHTML=header.map(h=>`<div>${h}</div>`).join('');
+      renderPage(currentPage);
+    })
+    .catch(err=>console.error('Failed to load exam:',err));
+}
+
+function renderPage(page){
+  questionsDiv.innerHTML='';
+  const start=(page-1)*perPage;
+  const end=Math.min(start+perPage,data.questions.length);
+  const pageQuestions=data.questions.slice(start,end);
+
+  pageQuestions.forEach((q,idx)=>{
+    const card=document.createElement('div'); card.className='question-card';
+    const label=document.createElement('div'); label.className='question-label';
+    label.textContent=`${start+idx+1}. ${q.label}`; card.appendChild(label);
+
+    const optionsDiv=document.createElement('div'); optionsDiv.className='options';
+    q.options.forEach((opt,oidx)=>{
+      const optionEl=document.createElement('div'); optionEl.className='option';
+      optionEl.textContent=opt;
+      optionEl.addEventListener('click',()=>{
+        if(optionEl.classList.contains('disabled')) return;
+        optionsDiv.querySelectorAll('.option').forEach(o=>o.classList.add('disabled'));
+        if(['a','b','c','d'][oidx]===q.answer){ optionEl.classList.add('correct'); right++; }
+        else{
+          optionEl.classList.add('wrong');
+          const rightBtn=optionsDiv.querySelector(`.option:nth-child(${q.answer.charCodeAt(0)-97+1})`);
+          if(rightBtn) rightBtn.classList.add('correct');
+          wrong++;
+        }
+        counterDiv.textContent=`R: ${right} | W: ${wrong}`;
+      });
+      optionsDiv.appendChild(optionEl);
+    });
+
+    card.appendChild(optionsDiv);
+    questionsDiv.appendChild(card);
+  });
+  renderPagination(page);
+}
+
+// Pagination with ellipsis
+function renderPagination(page){
+  paginationDiv.innerHTML='';
+  const totalPages=Math.ceil(data.questions.length/perPage);
+
+  const addPageBtn=(num)=>{
+    const btn=document.createElement('button'); btn.textContent=num;
+    if(num===page) btn.classList.add('disabled');
+    btn.addEventListener('click',()=>{currentPage=num; renderPage(currentPage);});
+    paginationDiv.appendChild(btn);
+  }
+
+  const prevBtn=document.createElement('button'); prevBtn.textContent='Prev';
+  prevBtn.disabled=page===1; if(page===1) prevBtn.classList.add('disabled');
+  prevBtn.addEventListener('click',()=>{currentPage--; renderPage(currentPage);});
+  paginationDiv.appendChild(prevBtn);
+
+  let pages=[];
+  if(totalPages<=7){ for(let i=1;i<=totalPages;i++) pages.push(i);}
+  else{
+    pages.push(1,2);
+    let start=Math.max(3,page-1);
+    let end=Math.min(totalPages-2,page+1);
+    if(start>3) pages.push('...');
+    for(let i=start;i<=end;i++) pages.push(i);
+    if(end<totalPages-2) pages.push('...');
+    pages.push(totalPages-1,totalPages);
+  }
+
+  pages.forEach(p=>{
+    if(p==='...'){ const span=document.createElement('span'); span.textContent='...'; span.style.margin='0 5px'; paginationDiv.appendChild(span);}
+    else addPageBtn(p);
+  });
+
+  const nextBtn=document.createElement('button'); nextBtn.textContent='Next';
+  nextBtn.disabled=page===totalPages; if(page===totalPages) nextBtn.classList.add('disabled');
+  nextBtn.addEventListener('click',()=>{currentPage++; renderPage(currentPage);});
+  paginationDiv.appendChild(nextBtn);
+}
+
+
+// Register SW
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg=>{
+      console.log('SW registered', reg);
+
+      function sendMCQs(){
+        if(reg.active){
+          reg.active.postMessage({type:'CACHE_MCQS', mcqs:Object.values(mcqs)});
+          
+        } else {
+          navigator.serviceWorker.ready.then(r=>r.active.postMessage({type:'CACHE_MCQS', mcqs:Object.values(mcqs)}));
+        }
+      }
+
+      sendMCQs();
+
+      // Optional: if mcqs object may change dynamically, call sendMCQs() again
+    })
+    .catch(err=>console.error('SW registration failed',err));
+}
+</script>
+
+</body>
+</html>

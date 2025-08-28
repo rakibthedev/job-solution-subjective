@@ -237,16 +237,16 @@ function renderPagination(page){
 const resetBtn = document.createElement('button');
 resetBtn.textContent = '⟲ Reset';
 resetBtn.style.position = 'fixed';
-resetBtn.style.bottom = '60px'; // above the scroll button
-resetBtn.style.right = '0';
+resetBtn.style.bottom = '200px'; // above the scroll button
+resetBtn.style.left = '0';
 resetBtn.style.background = '#d32f2f'; // red tone
 resetBtn.style.color = '#fff';
 resetBtn.style.border = 'none';
 resetBtn.style.padding = '6px 12px';
 resetBtn.style.cursor = 'pointer';
 resetBtn.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
-resetBtn.style.borderTopLeftRadius = '10px';
-resetBtn.style.borderBottomLeftRadius = '10px';
+resetBtn.style.borderTopRightRadius = '10px';
+resetBtn.style.borderBottomRightRadius = '10px';
 resetBtn.style.zIndex = '9999';
 
 document.body.appendChild(resetBtn);

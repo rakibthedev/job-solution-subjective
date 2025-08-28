@@ -156,7 +156,7 @@ body {
 
 .counter {
     position: fixed;
-    bottom: 100px;
+    bottom: 180px;
     left: 0px;
     background: #6a1b9a;
     padding: 6px 12px;
@@ -178,7 +178,7 @@ body {
     font-size: 20px;
     background: var(--primary);
     border-radius: 4px;
-    width: 32px;
+    width: 34px;
     height: 26px;
     align-items: center;
     justify-content: center;

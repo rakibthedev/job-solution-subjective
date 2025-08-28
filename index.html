@@ -116,44 +116,86 @@ function renderPage(page){
   renderPagination(page);
 }
 
-// Pagination with ellipsis
 function renderPagination(page){
   paginationDiv.innerHTML='';
-  const totalPages=Math.ceil(data.questions.length/perPage);
+  const totalPages = Math.ceil(data.questions.length / perPage);
 
   const addPageBtn=(num)=>{
-    const btn=document.createElement('button'); btn.textContent=num;
+    const btn=document.createElement('button');
+    btn.textContent=num;
     if(num===page) btn.classList.add('disabled');
-    btn.addEventListener('click',()=>{currentPage=num; renderPage(currentPage);});
+    btn.addEventListener('click',()=>{
+      currentPage=num;
+      renderPage(currentPage);
+    });
     paginationDiv.appendChild(btn);
-  }
+  };
 
-  const prevBtn=document.createElement('button'); prevBtn.textContent='Prev';
-  prevBtn.disabled=page===1; if(page===1) prevBtn.classList.add('disabled');
+  // First button
+  const firstBtn=document.createElement('button');
+  firstBtn.textContent='First';
+  firstBtn.disabled=page===1;
+  if(page===1) firstBtn.classList.add('disabled');
+  firstBtn.addEventListener('click',()=>{currentPage=1; renderPage(currentPage);});
+  paginationDiv.appendChild(firstBtn);
+
+  // Prev button
+  const prevBtn=document.createElement('button');
+  prevBtn.textContent='Prev';
+  prevBtn.disabled=page===1;
+  if(page===1) prevBtn.classList.add('disabled');
   prevBtn.addEventListener('click',()=>{currentPage--; renderPage(currentPage);});
   paginationDiv.appendChild(prevBtn);
 
-  let pages=[];
-  if(totalPages<=7){ for(let i=1;i<=totalPages;i++) pages.push(i);}
-  else{
-    pages.push(1,2);
-    let start=Math.max(3,page-1);
-    let end=Math.min(totalPages-2,page+1);
-    if(start>3) pages.push('.');
-    for(let i=start;i<=end;i++) pages.push(i);
-    if(end<totalPages-2) pages.push('.');
-    pages.push(totalPages-1,totalPages);
+  // Pages (show 2 before, current, 2 after)
+  let start=Math.max(1, page-2);
+  let end=Math.min(totalPages, page+2);
+
+  for(let i=start; i<=end; i++){
+    addPageBtn(i);
   }
 
-  pages.forEach(p=>{
-    if(p==='...'){ const span=document.createElement('span'); span.textContent='...'; span.style.margin='0 5px'; paginationDiv.appendChild(span);}
-    else addPageBtn(p);
-  });
-
-  const nextBtn=document.createElement('button'); nextBtn.textContent='Next';
-  nextBtn.disabled=page===totalPages; if(page===totalPages) nextBtn.classList.add('disabled');
+  // Next button
+  const nextBtn=document.createElement('button');
+  nextBtn.textContent='Next';
+  nextBtn.disabled=page===totalPages;
+  if(page===totalPages) nextBtn.classList.add('disabled');
   nextBtn.addEventListener('click',()=>{currentPage++; renderPage(currentPage);});
   paginationDiv.appendChild(nextBtn);
+
+  // Last button
+  const lastBtn=document.createElement('button');
+  lastBtn.textContent='Last';
+  lastBtn.disabled=page===totalPages;
+  if(page===totalPages) lastBtn.classList.add('disabled');
+  lastBtn.addEventListener('click',()=>{currentPage=totalPages; renderPage(currentPage);});
+  paginationDiv.appendChild(lastBtn);
+
+  // Jump-to-page input + button
+  const jumpDiv=document.createElement('div');
+  jumpDiv.style.marginTop='10px';
+
+  const input=document.createElement('input');
+  input.type='number';
+  input.min=1;
+  input.max=totalPages;
+  input.placeholder='Page #';
+  input.style.width='70px';
+  input.style.marginRight='5px';
+
+  const jumpBtn=document.createElement('button');
+  jumpBtn.textContent='Go';
+  jumpBtn.addEventListener('click',()=>{
+    let num=parseInt(input.value,10);
+    if(!isNaN(num) && num>=1 && num<=totalPages){
+      currentPage=num;
+      renderPage(currentPage);
+    }
+  });
+
+  jumpDiv.appendChild(input);
+  jumpDiv.appendChild(jumpBtn);
+  paginationDiv.appendChild(jumpDiv);
 }
 
 

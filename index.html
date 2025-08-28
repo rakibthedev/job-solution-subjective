@@ -30,7 +30,7 @@ const mcqs = {
   "বাংলা ভাষা ও ব্যাকরণ":"./mcq/bangla_bakoron.json",
 };
 
-let data={header:[],questions:[]}, currentPage=1, right=0, wrong=0;
+let data={header:[],questions:[]}, currentPage=1;
 const perPage=50;
 
 const sidebar=document.getElementById('sidebar');
@@ -71,60 +71,81 @@ function loadExam(file){
       const firstHeaderObj=json.find(item=>item.header);
       const header=firstHeaderObj?.header||[];
       const questions=json.filter(item=>item.label);
+      // reset selection state
+      questions.forEach(q=>q.selected=null);
+
       data={header,questions};
-      currentPage=1; right=0; wrong=0;
-      counterDiv.textContent=`R: ${right} | W: ${wrong}`;
+      currentPage=1;
+      updateCounter();
       headerDiv.innerHTML=header.map(h=>`<div>${h}</div>`).join('');
       renderPage(currentPage);
     })
     .catch(err=>console.error('Failed to load exam:',err));
 }
 
-let userAnswers = {}; // { questionIndex: selectedOptionIndex }
+// Update right/wrong counter from data
+function updateCounter(){
+  let right=0, wrong=0;
+  data.questions.forEach(q=>{
+    if(q.selected){
+      if(q.selected===q.answer) right++;
+      else wrong++;
+    }
+  });
+  counterDiv.textContent=`R: ${right} | W: ${wrong}`;
+}
 
-// Render one page
 function renderPage(page){
   questionsDiv.innerHTML='';
   const start=(page-1)*perPage;
-  const end=Math.min(start+perPage, data.questions.length);
+  const end=Math.min(start+perPage,data.questions.length);
+  const pageQuestions=data.questions.slice(start,end);
 
-  for(let i=start;i<end;i++){
-    const q=data.questions[i];
-    const qDiv=document.createElement('div');
-    qDiv.className='question';
+  pageQuestions.forEach((q,idx)=>{
+    const card=document.createElement('div'); card.className='question-card';
+    const label=document.createElement('div'); label.className='question-label';
+    label.textContent=`${start+idx+1}. ${q.label}`; card.appendChild(label);
 
-    const qTitle=document.createElement('h3');
-    qTitle.textContent=`Q${i+1}. ${q.label}`;
-    qDiv.appendChild(qTitle);
+    const optionsDiv=document.createElement('div'); optionsDiv.className='options';
+    q.options.forEach((opt,oidx)=>{
+      const optionEl=document.createElement('div'); 
+      optionEl.className='option';
+      optionEl.textContent=opt;
 
-    q.options.forEach((opt,idx)=>{
-      const btn=document.createElement('button');
-      btn.textContent=opt;
+      const thisKey=['a','b','c','d'][oidx];
 
-      // restore saved answer highlight
-      if(userAnswers[i] !== undefined){
-        if(userAnswers[i]===idx){
-          if(idx===q.answer){
-            btn.classList.add('correct');
-          } else {
-            btn.classList.add('wrong');
-          }
+      // restore state if answered before
+      if(q.selected){
+        optionEl.classList.add('disabled');
+        if(thisKey===q.answer){
+          optionEl.classList.add('correct');
         }
-        if(idx===q.answer && userAnswers[i]!==idx){
-          btn.classList.add('correct');
+        if(thisKey===q.selected && q.selected!==q.answer){
+          optionEl.classList.add('wrong');
         }
       }
 
-      btn.addEventListener('click',()=>{
-        userAnswers[i]=idx;
-        renderPage(page); // re-render to update highlight
+      optionEl.addEventListener('click',()=>{
+        if(q.selected) return; // already answered, block further
+        q.selected=thisKey;
+
+        optionsDiv.querySelectorAll('.option').forEach(o=>o.classList.add('disabled'));
+        if(q.selected===q.answer){
+          optionEl.classList.add('correct');
+        } else {
+          optionEl.classList.add('wrong');
+          const rightBtn=optionsDiv.querySelector(`.option:nth-child(${q.answer.charCodeAt(0)-97+1})`);
+          if(rightBtn) rightBtn.classList.add('correct');
+        }
+        updateCounter();
       });
-      qDiv.appendChild(btn);
+
+      optionsDiv.appendChild(optionEl);
     });
 
-    questionsDiv.appendChild(qDiv);
-  }
-
+    card.appendChild(optionsDiv);
+    questionsDiv.appendChild(card);
+  });
   renderPagination(page);
 }
 
@@ -162,10 +183,7 @@ function renderPagination(page){
   // Pages (show 2 before, current, 2 after)
   let start=Math.max(1, page-2);
   let end=Math.min(totalPages, page+2);
-
-  for(let i=start; i<=end; i++){
-    addPageBtn(i);
-  }
+  for(let i=start; i<=end; i++){ addPageBtn(i); }
 
   // Next button
   const nextBtn=document.createElement('button');
@@ -197,7 +215,6 @@ function renderPagination(page){
   input.style.padding='5px';
   input.style.border='1px solid #6a1b9a';
   input.style.borderRadius='4px';
-  
 
   const jumpBtn=document.createElement('button');
   jumpBtn.style.padding = "7px 16px";
@@ -209,14 +226,11 @@ function renderPagination(page){
       renderPage(currentPage);
     }
   });
-  
 
   jumpDiv.appendChild(input);
   jumpDiv.appendChild(jumpBtn);
   paginationDiv.appendChild(jumpDiv);
 }
-
-
 
 // Floating "Go Top/Bottom" button
 const scrollBtn = document.createElement('button');
@@ -257,11 +271,7 @@ function updateBtnLabel() {
     scrollBtn.textContent = '↓ Bottom';
   }
 }
-
 window.addEventListener('scroll', updateBtnLabel);
-
-
-
 
 // Register SW
 if('serviceWorker' in navigator){
@@ -272,15 +282,12 @@ if('serviceWorker' in navigator){
       function sendMCQs(){
         if(reg.active){
           reg.active.postMessage({type:'CACHE_MCQS', mcqs:Object.values(mcqs)});
-          
         } else {
           navigator.serviceWorker.ready.then(r=>r.active.postMessage({type:'CACHE_MCQS', mcqs:Object.values(mcqs)}));
         }
       }
 
       sendMCQs();
-
-      // Optional: if mcqs object may change dynamically, call sendMCQs() again
     })
     .catch(err=>console.error('SW registration failed',err));
 }

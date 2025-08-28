@@ -208,7 +208,7 @@ function renderPagination(page){
 
 // Floating "Go Top/Bottom" button
 const scrollBtn = document.createElement('button');
-scrollBtn.textContent = '↓ Bottom'; // default text
+scrollBtn.textContent = '↓ Bottom'; // initial
 scrollBtn.style.position = 'fixed';
 scrollBtn.style.bottom = '160px';
 scrollBtn.style.right = '0';
@@ -224,17 +224,6 @@ scrollBtn.style.zIndex = '9999';
 
 document.body.appendChild(scrollBtn);
 
-// Detect scroll position to toggle label
-function updateBtnLabel() {
-  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) {
-    // At bottom → show "↑ Top"
-    scrollBtn.textContent = '↑ Top';
-  } else {
-    // Not at bottom → show "↓ Bottom"
-    scrollBtn.textContent = '↓ Bottom';
-  }
-}
-
 // Button click action
 scrollBtn.addEventListener('click', () => {
   if (scrollBtn.textContent === '↓ Bottom') {
@@ -244,11 +233,21 @@ scrollBtn.addEventListener('click', () => {
   }
 });
 
-// Update button label on scroll
+// Toggle label based on scroll position
+function updateBtnLabel() {
+  const scrollTop = window.scrollY;
+  const docHeight = document.body.scrollHeight - window.innerHeight;
+  const scrolledPercent = (scrollTop / docHeight) * 100;
+
+  if (scrolledPercent > 50) {
+    scrollBtn.textContent = '↑ Top';
+  } else {
+    scrollBtn.textContent = '↓ Bottom';
+  }
+}
+
 window.addEventListener('scroll', updateBtnLabel);
 
-// Initial label
-updateBtnLabel();
 
 
 

@@ -139,9 +139,9 @@ function renderPagination(page){
     pages.push(1,2);
     let start=Math.max(3,page-1);
     let end=Math.min(totalPages-2,page+1);
-    if(start>3) pages.push('');
+    if(start>3) pages.push('.');
     for(let i=start;i<=end;i++) pages.push(i);
-    if(end<totalPages-2) pages.push('');
+    if(end<totalPages-2) pages.push('.');
     pages.push(totalPages-1,totalPages);
   }
 

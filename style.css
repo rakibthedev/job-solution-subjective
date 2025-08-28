@@ -156,16 +156,16 @@ body {
 
 .counter {
     position: fixed;
-    font-weight: bold;
     bottom: 100px;
     left: 0px;
     background: #6a1b9a;
-    padding: 5px 8px;
+    padding: 7px 9px;
     border-radius: 8px;
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
     box-shadow: 0 2px 6px var(--shadow);
     font-weight: 400;
+    font-size: 14px;
     color: #fff;
     z-index: 100;
 }

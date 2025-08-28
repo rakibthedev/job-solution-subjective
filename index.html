@@ -80,39 +80,51 @@ function loadExam(file){
     .catch(err=>console.error('Failed to load exam:',err));
 }
 
+let userAnswers = {}; // { questionIndex: selectedOptionIndex }
+
+// Render one page
 function renderPage(page){
   questionsDiv.innerHTML='';
   const start=(page-1)*perPage;
-  const end=Math.min(start+perPage,data.questions.length);
-  const pageQuestions=data.questions.slice(start,end);
+  const end=Math.min(start+perPage, data.questions.length);
 
-  pageQuestions.forEach((q,idx)=>{
-    const card=document.createElement('div'); card.className='question-card';
-    const label=document.createElement('div'); label.className='question-label';
-    label.textContent=`${start+idx+1}. ${q.label}`; card.appendChild(label);
+  for(let i=start;i<end;i++){
+    const q=data.questions[i];
+    const qDiv=document.createElement('div');
+    qDiv.className='question';
 
-    const optionsDiv=document.createElement('div'); optionsDiv.className='options';
-    q.options.forEach((opt,oidx)=>{
-      const optionEl=document.createElement('div'); optionEl.className='option';
-      optionEl.textContent=opt;
-      optionEl.addEventListener('click',()=>{
-        if(optionEl.classList.contains('disabled')) return;
-        optionsDiv.querySelectorAll('.option').forEach(o=>o.classList.add('disabled'));
-        if(['a','b','c','d'][oidx]===q.answer){ optionEl.classList.add('correct'); right++; }
-        else{
-          optionEl.classList.add('wrong');
-          const rightBtn=optionsDiv.querySelector(`.option:nth-child(${q.answer.charCodeAt(0)-97+1})`);
-          if(rightBtn) rightBtn.classList.add('correct');
-          wrong++;
+    const qTitle=document.createElement('h3');
+    qTitle.textContent=`Q${i+1}. ${q.label}`;
+    qDiv.appendChild(qTitle);
+
+    q.options.forEach((opt,idx)=>{
+      const btn=document.createElement('button');
+      btn.textContent=opt;
+
+      // restore saved answer highlight
+      if(userAnswers[i] !== undefined){
+        if(userAnswers[i]===idx){
+          if(idx===q.answer){
+            btn.classList.add('correct');
+          } else {
+            btn.classList.add('wrong');
+          }
         }
-        counterDiv.textContent=`R: ${right} | W: ${wrong}`;
+        if(idx===q.answer && userAnswers[i]!==idx){
+          btn.classList.add('correct');
+        }
+      }
+
+      btn.addEventListener('click',()=>{
+        userAnswers[i]=idx;
+        renderPage(page); // re-render to update highlight
       });
-      optionsDiv.appendChild(optionEl);
+      qDiv.appendChild(btn);
     });
 
-    card.appendChild(optionsDiv);
-    questionsDiv.appendChild(card);
-  });
+    questionsDiv.appendChild(qDiv);
+  }
+
   renderPagination(page);
 }
 

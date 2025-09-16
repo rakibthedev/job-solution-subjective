@@ -76,14 +76,14 @@ function loadExam(file){
 
       data={header,questions};
       currentPage=1;
-      updateCounter();
+      updateCounter(header[1]);
       headerDiv.innerHTML=header.map(h=>`<div>${h}</div>`).join('');
       renderPage(currentPage);
     })
     .catch(err=>console.error('Failed to load exam:',err));
 }
 let wrongIdx = [];
-function updateCounter() {
+function updateCounter(examSub) {
   let right = 0, wrong = 0;
   wrongIdx = []; // reset each time
   data.questions.forEach((q, idx) => {
@@ -92,18 +92,18 @@ function updateCounter() {
         right++;
       } else {
         wrong++;
-        wrongIdx.push(idx);
+        wrongIdx.push(idx + 1);
       }
     }
   });
-  counterDiv.innerHTML = `R: ${right} | <span style="cursor:pointer;" onclick="copyTextToClipboard(wrongIdx.join(','))"> W: ${wrong}</span>`;
+  counterDiv.innerHTML = `R: ${right} | <span style="cursor:pointer;" onclick="copyTextToClipboard(examSub +' (wrong answer no.:) \n'+ wrongIdx.join(','))"> W: ${wrong}</span>`;
 }
   async function copyTextToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text);
-    alert('Copied wrong answers id to clipboard');
+    alert('Successfully copied to clipboard');
   } catch (err) {
-    console.error('Failed to copy text: ', err);
+    console.error('Failed to copy: ', err);
   }
 }
 

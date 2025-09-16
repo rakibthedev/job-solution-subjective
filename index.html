@@ -64,30 +64,44 @@ window.addEventListener('DOMContentLoaded',()=>{
   loadExam(mcqs[firstExam]);
 });
 
-function loadExam(file){
-  fetch(file)
-    .then(res=>res.json())
-    .then(json=>{
-      const firstHeaderObj=json.find(item=>item.header);
-      const header=firstHeaderObj?.header||[];
-      const questions=json.filter(item=>item.label);
-      // reset selection state
-      questions.forEach(q=>q.selected=null);
+let data = { header: [], questions: [] };
+let currentPage = 1;
+let wrongIdx = [];
 
-      data={header,questions};
-      currentPage=1;
-      updateCounter(header[1]);
-      headerDiv.innerHTML=header.map(h=>`<div>${h}</div>`).join('');
+function loadExam(file) {
+  fetch(file)
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+      return res.json();
+    })
+    .then(json => {
+      // Extract header and questions
+      const firstHeaderObj = json.find(item => item.header);
+      const header = firstHeaderObj?.header || [];
+      const questions = json.filter(item => item.label);
+
+      // Reset selection state
+      questions.forEach(q => (q.selected = null));
+
+      // Save data
+      data = { header, questions };
+      currentPage = 1;
+
+      // Update UI
+      updateCounter(header[1] || "");
+      headerDiv.innerHTML = header.map(h => `<div>${h}</div>`).join("");
       renderPage(currentPage);
     })
-    .catch(err=>console.error('Failed to load exam:',err));
+    .catch(err => console.error("Failed to load exam:", err));
 }
-let wrongIdx = [];
+
 function updateCounter(examSub) {
-  let right = 0, wrong = 0;
+  let right = 0,
+    wrong = 0;
   wrongIdx = []; // reset each time
+
   data.questions.forEach((q, idx) => {
-    if (q.selected) {
+    if (q.selected !== null) {
       if (q.selected === q.answer) {
         right++;
       } else {
@@ -96,16 +110,25 @@ function updateCounter(examSub) {
       }
     }
   });
-  counterDiv.innerHTML = `R: ${right} | <span style="cursor:pointer;" onclick="copyTextToClipboard(examSub +' (wrong answer no.:) \n'+ wrongIdx.join(','))"> W: ${wrong}</span>`;
+
+  counterDiv.innerHTML = `
+    R: ${right} | 
+    <span style="cursor:pointer;" 
+          onclick="copyTextToClipboard(\`${examSub} (wrong answer no.:) \n${wrongIdx.join(',')}\`)">
+      W: ${wrong}
+    </span>
+  `;
 }
-  async function copyTextToClipboard(text) {
+
+async function copyTextToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text);
-    alert('Successfully copied to clipboard');
+    alert("Successfully copied to clipboard");
   } catch (err) {
-    console.error('Failed to copy: ', err);
+    console.error("Failed to copy:", err);
   }
 }
+
 
 
 function renderPage(page){

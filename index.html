@@ -68,6 +68,8 @@ window.addEventListener('DOMContentLoaded', () => {
   loadExam(mcqs[firstExam]);
 });
 
+let currentExamSub = ""; // global exam subject
+
 function loadExam(file) {
   fetch(file)
     .then(res => {
@@ -75,29 +77,28 @@ function loadExam(file) {
       return res.json();
     })
     .then(json => {
-      // Extract header and questions
       const firstHeaderObj = json.find(item => item.header);
       const header = firstHeaderObj?.header || [];
       const questions = json.filter(item => item.label);
 
-      // Reset selection state
       questions.forEach(q => (q.selected = null));
 
-      // Save data
       data = { header, questions };
       currentPage = 1;
 
-      // Update UI
-      updateCounter(header[1] || "");
+      // store exam subject (safe fallback if header[1] is missing)
+      currentExamSub = header[1] || header[0] || "Exam";
+
+      updateCounter();
       headerDiv.innerHTML = header.map(h => `<div>${h}</div>`).join("");
       renderPage(currentPage);
     })
     .catch(err => console.error("Failed to load exam:", err));
 }
 
-function updateCounter(examSub) {
+function updateCounter() {
   let right = 0, wrong = 0;
-  wrongIdx = []; // reset each time
+  wrongIdx = [];
 
   data.questions.forEach((q, idx) => {
     if (q.selected !== null) {
@@ -111,12 +112,12 @@ function updateCounter(examSub) {
   });
 
   counterDiv.innerHTML = `
-  R: ${right} | 
-  <span style="cursor:pointer;" 
-        onclick="copyTextToClipboard(\`${examSub} (wrong answer no.:)\n${wrongIdx.join(',')}\`)">
-    W: ${wrong}
-  </span>
-`;
+    R: ${right} | 
+    <span style="cursor:pointer;" 
+          onclick="copyTextToClipboard(\`${currentExamSub} (wrong answer no.:)\n${wrongIdx.join(',')}\`)">
+      W: ${wrong}
+    </span>
+  `;
 }
 
 async function copyTextToClipboard(text) {

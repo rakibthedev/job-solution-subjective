@@ -82,18 +82,31 @@ function loadExam(file){
     })
     .catch(err=>console.error('Failed to load exam:',err));
 }
-
-// Update right/wrong counter from data
-function updateCounter(){
-  let right=0, wrong=0;
-  data.questions.forEach(q=>{
-    if(q.selected){
-      if(q.selected===q.answer) right++;
-      else wrong++;
+let wrongIdx = [];
+function updateCounter() {
+  let right = 0, wrong = 0;
+  wrongIdx = []; // reset each time
+  data.questions.forEach((q, idx) => {
+    if (q.selected) {
+      if (q.selected === q.answer) {
+        right++;
+      } else {
+        wrong++;
+        wrongIdx.push(idx);
+      }
     }
   });
-  counterDiv.textContent=`R: ${right} | W: ${wrong}`;
+  counterDiv.innerHTML = `R: ${right} | <span style="cursor:pointer;" onclick="copyTextToClipboard(wrongIdx.join(','))"> W: ${wrong}</span>`;
 }
+  async function copyTextToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    alert('Copied wrong answers id to clipboard');
+  } catch (err) {
+    console.error('Failed to copy text: ', err);
+  }
+}
+
 
 function renderPage(page){
   questionsDiv.innerHTML='';
@@ -247,7 +260,7 @@ resetBtn.style.cursor = 'pointer';
 resetBtn.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
 resetBtn.style.borderTopRightRadius = '10px';
 resetBtn.style.borderBottomRightRadius = '10px';
-resetBtn.style.zIndex = '9999';
+resetBtn.style.zIndex = '50';
 
 document.body.appendChild(resetBtn);
 

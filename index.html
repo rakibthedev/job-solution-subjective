@@ -112,12 +112,12 @@ function updateCounter(examSub) {
   });
 
   counterDiv.innerHTML = `
-    R: ${right} | 
-    <span style="cursor:pointer;" 
-          onclick="copyTextToClipboard(\`${examSub} (wrong answer no.:) \n${wrongIdx.join(',')}\`)">
-      W: ${wrong}
-    </span>
-  `;
+  R: ${right} | 
+  <span style="cursor:pointer;" 
+        onclick="copyTextToClipboard(\`${examSub} (wrong answer no.:)\n${wrongIdx.join(',')}\`)">
+    W: ${wrong}
+  </span>
+`;
 }
 
 async function copyTextToClipboard(text) {

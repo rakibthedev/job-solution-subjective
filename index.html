@@ -13,16 +13,49 @@
 
 <div class="hamburger" id="hamburger"><i class="fas fa-bars"></i></div>
 
-<div class="container-wrapper">
-  <div class="sidebar" id="sidebar"></div>
-  <div class="main-container">
-    <div id="headerDiv" class="header"></div>
-    <div id="questions"></div>
-    <div class="pagination" id="pagination"></div>
+  <div class="container-wrapper">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="main-container">
+      <div id="headerDiv" class="header"></div>
+      <div id="questions"></div>
+      <div class="pagination" id="pagination"></div>
+    </div>
   </div>
-</div>
 
-<div class="counter" id="counter">R: 0 | W: 0</div>
+  <div class="counter" id="counter">R: 0 | W: 0</div>
+
+  <style>
+    /* Sidebar input styles */
+    .sidebar-input-wrapper {
+      margin-top: auto;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+      display: flex;
+      gap: 5px;
+      flex-direction: column;
+    }
+
+    .sidebar-input-wrapper input {
+      padding: 6px;
+      border: 1px solid #6a1b9a;
+      border-radius: 5px;
+      outline: none;
+      width: 100%;
+    }
+
+    .sidebar-input-wrapper button {
+      padding: 6px;
+      background: #6a1b9a;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .sidebar-input-wrapper button:hover {
+      background: #4a1370;
+    }
+  </style>
 
 <script>
 const mcqs = {
@@ -60,7 +93,91 @@ for (let exam in mcqs) {
   });
   sidebar.appendChild(div);
 }
+// Add input + button at bottom of sidebar
+const inputWrapper = document.createElement('div');
+inputWrapper.className = 'sidebar-input-wrapper';
 
+const filterInput = document.createElement('input');
+filterInput.type = 'text';
+filterInput.placeholder = 'Enter Q numbers (e.g. 1,2,3)';
+
+const filterBtn = document.createElement('button');
+filterBtn.textContent = 'Filter Questions';
+
+inputWrapper.appendChild(filterInput);
+inputWrapper.appendChild(filterBtn);
+sidebar.appendChild(inputWrapper);
+
+// Handle filter
+filterBtn.addEventListener('click', () => {
+  const raw = filterInput.value.trim();
+  if (!raw) return;
+
+  // Parse input like "1,2,3" → [1,2,3]
+  const nums = raw.split(',')
+    .map(n => parseInt(n.trim(), 10))
+    .filter(n => !isNaN(n) && n > 0 && n <= data.questions.length);
+
+  if (nums.length === 0) return;
+
+  // Convert to indices (subtract 1)
+  const selectedQs = nums.map(n => data.questions[n - 1]);
+
+  // Render only selected questions
+  questionsDiv.innerHTML = '';
+  selectedQs.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'question-card';
+
+    const label = document.createElement('div');
+    label.className = 'question-label';
+    label.textContent = `${nums[idx]}. ${q.label}`;
+    card.appendChild(label);
+
+    const optionsDiv = document.createElement('div');
+    optionsDiv.className = 'options';
+
+    q.options.forEach((opt, oidx) => {
+      const optionEl = document.createElement('div');
+      optionEl.className = 'option';
+      optionEl.textContent = opt;
+
+      const thisKey = ['a', 'b', 'c', 'd'][oidx];
+
+      if (q.selected) {
+        optionEl.classList.add('disabled');
+        if (thisKey === q.answer) optionEl.classList.add('correct');
+        if (thisKey === q.selected && q.selected !== q.answer)
+          optionEl.classList.add('wrong');
+      }
+
+      optionEl.addEventListener('click', () => {
+        if (q.selected) return;
+        q.selected = thisKey;
+
+        optionsDiv.querySelectorAll('.option').forEach(o => o.classList.add('disabled'));
+        if (q.selected === q.answer) {
+          optionEl.classList.add('correct');
+        } else {
+          optionEl.classList.add('wrong');
+          const rightBtn = optionsDiv.querySelector(`.option:nth-child(${q.answer.charCodeAt(0) - 97 + 1})`);
+          if (rightBtn) rightBtn.classList.add('correct');
+        }
+        updateCounter();
+      });
+
+      optionsDiv.appendChild(optionEl);
+    });
+
+    card.appendChild(optionsDiv);
+    questionsDiv.appendChild(card);
+  });
+
+  // Clear pagination (since filtered view is custom)
+  paginationDiv.innerHTML = '';
+});
+
+  
 // Load first exam onload
 window.addEventListener('DOMContentLoaded', () => {
   const firstExam = Object.keys(mcqs)[0];

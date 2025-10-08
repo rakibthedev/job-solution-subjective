@@ -214,10 +214,22 @@ document.body.appendChild(clearFilterBtn);
 
 clearFilterBtn.addEventListener("click", () => {
   currentFilter = "all";
-  currentPage = 1;
+
+  // Restore page from localStorage if exists, otherwise keep currentPage
+  const saved = localStorage.getItem(`mcq_${currentExamKey}`);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      currentPage = parsed.page || currentPage; // keep saved page
+    } catch (e) {
+      console.warn("Failed to restore page:", e);
+    }
+  }
+
   renderPage(currentPage);
   hideClearFilterButton();
 });
+
 
 function showClearFilterButton() {
   clearFilterBtn.style.display = "block";
@@ -319,27 +331,84 @@ function renderPage(page) {
 
   renderPagination(page, filtered.length);
 }
-
 // ==================== PAGINATION ====================
 function renderPagination(page, totalQuestions) {
-  paginationDiv.innerHTML = "";
+  paginationDiv.innerHTML = ""; // Clear previous pagination
+
   const totalPages = Math.ceil(totalQuestions / perPage);
+
+  // ---------------- Pagination buttons wrapper ----------------
+  const wrapper = document.createElement("div");
+  wrapper.className = "pagination-menu"; // wrapper for buttons
+  wrapper.style.display = "flex";
+  wrapper.style.alignItems = "center";
+  wrapper.style.gap = "4px"; // spacing between buttons
 
   const makeBtn = (txt, click, disabled) => {
     const b = document.createElement("button");
     b.textContent = txt;
     if (disabled) b.classList.add("disabled");
     b.onclick = click;
-    paginationDiv.appendChild(b);
+    wrapper.appendChild(b);
   };
 
+  // First page
   makeBtn("<<", () => { currentPage = 1; renderPage(currentPage); saveProgress(); }, page === 1);
+
+  // Previous page
   makeBtn("<", () => { currentPage--; renderPage(currentPage); saveProgress(); }, page === 1);
+
+  // Current page ±1
   for (let i = Math.max(1, page - 1); i <= Math.min(totalPages, page + 1); i++) {
     makeBtn(i, () => { currentPage = i; renderPage(currentPage); saveProgress(); }, i === page);
   }
+
+  // Next page
   makeBtn(">", () => { currentPage++; renderPage(currentPage); saveProgress(); }, page === totalPages);
+
+  // Last page
   makeBtn(">>", () => { currentPage = totalPages; renderPage(currentPage); saveProgress(); }, page === totalPages);
+
+  // Append pagination buttons wrapper to paginationDiv
+  paginationDiv.appendChild(wrapper);
+
+  // ---------------- Jump to Page Input ----------------
+  const jumpDiv = document.createElement("div");
+  jumpDiv.style.display = "flex";
+  jumpDiv.style.alignItems = "center";
+  jumpDiv.style.marginTop = "10px"; // spacing below buttons
+
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = 1;
+  input.max = totalPages;
+  input.placeholder = `${currentPage}/${totalPages}`;
+  input.style.width = "60px";
+  input.style.marginRight = "5px";
+  input.style.padding = "4px";
+  input.style.border = "1px solid #6a1b9a";
+  input.style.borderRadius = "4px";
+
+  const jumpBtn = document.createElement("button");
+  jumpBtn.textContent = "Go";
+  jumpBtn.style.padding = "4px 10px";
+  jumpBtn.addEventListener("click", () => {
+    let num = parseInt(input.value, 10);
+    if (!isNaN(num) && num >= 1 && num <= totalPages) {
+      currentPage = num;
+      renderPage(currentPage);
+      saveProgress();
+    } else {
+      alert(`Please enter a number between 1 and ${totalPages}`);
+    }
+    input.value = "";
+  });
+
+  jumpDiv.appendChild(input);
+  jumpDiv.appendChild(jumpBtn);
+
+  // Append jumpDiv to paginationDiv (outside pagination-menu)
+  paginationDiv.appendChild(jumpDiv);
 }
 
 // ==================== RESET BUTTON ====================
@@ -359,31 +428,6 @@ Object.assign(resetBtn.style, {
   zIndex: "99",
 });
 document.body.appendChild(resetBtn);
-
-// Not remove fav on reset 
-// resetBtn.onclick = () => {
-//   if (!currentExamKey) return;
-//   const choice = prompt("Type 'all' to reset entire exam OR 'this' to reset this page only:");
-//   if (!choice) return;
-
-//   if (choice.toLowerCase() === "all") {
-//     if (!confirm("Reset ALL pages for this exam?")) return;
-//     localStorage.removeItem(`mcq_${currentExamKey}`);
-//     data.questions.forEach((q) => (q.selected = null));
-//     currentPage = 1;
-//     currentFilter = "all";
-//     updateCounter();
-//     renderPage(currentPage);
-//   } else if (choice.toLowerCase() === "this") {
-//     if (!confirm("Reset this page only?")) return;
-//     const start = (currentPage - 1) * perPage;
-//     const end = Math.min(start + perPage, data.questions.length);
-//     data.questions.slice(start, end).forEach((pq) => (pq.selected = null));
-//     saveProgress();
-//     updateCounter();
-//     renderPage(currentPage);
-//   } else alert("Invalid input!");
-// };
 
 // Reset all also fav 
 resetBtn.onclick = () => {

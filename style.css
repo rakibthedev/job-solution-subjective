@@ -135,12 +135,15 @@ body {
 .pagination {
     display: flex;
     justify-content: center;
+    align-items: center;
     margin: 20px 0;
-    gap: 5px;
+    row-gap: 7px;
+    column-gap: 0;
     flex-wrap: wrap;
+    flex-direction: column;
 }
 
-.pagination button {
+.pagination button{
     padding: 5px 10px;
     border: none;
     border-radius: 5px;

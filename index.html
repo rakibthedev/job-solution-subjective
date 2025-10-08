@@ -26,145 +26,194 @@
 
 <script>
 const mcqs = {
-  "বাংলা সাহিত্য":"./mcq/bangla_sahitto.json",
-  "বাংলা ভাষা ও ব্যাকরণ":"./mcq/bangla_bakoron.json",
+  "বাংলা সাহিত্য": "./mcq/bangla_sahitto.json",
+  "বাংলা ভাষা ও ব্যাকরণ": "./mcq/bangla_bakoron.json",
 };
 
-let data={header:[],questions:[]}, currentPage=1, currentExamKey=null;
-const perPage=50;
+let data = { header: [], questions: [] },
+  currentPage = 1,
+  currentExamKey = null,
+  currentFilter = "all"; // 🧠 all | right | wrong
+const perPage = 50;
 
-const sidebar=document.getElementById('sidebar');
-const headerDiv=document.getElementById('headerDiv');
-const questionsDiv=document.getElementById('questions');
-const paginationDiv=document.getElementById('pagination');
-const counterDiv=document.getElementById('counter');
-const hamburger=document.getElementById('hamburger');
+const sidebar = document.getElementById("sidebar");
+const headerDiv = document.getElementById("headerDiv");
+const questionsDiv = document.getElementById("questions");
+const paginationDiv = document.getElementById("pagination");
+const counterDiv = document.getElementById("counter");
+const hamburger = document.getElementById("hamburger");
 
 // Hamburger toggle
-hamburger.addEventListener('click',()=>{ sidebar.classList.toggle('show'); });
+hamburger.addEventListener("click", () => {
+  sidebar.classList.toggle("show");
+});
 
 // Build sidebar
-for(let exam in mcqs){
-  const div=document.createElement('div');
-  div.textContent=exam;
-  div.addEventListener('click', ()=>{
-    if(div.classList.contains("active")) return;
-    document.querySelectorAll('.sidebar div').forEach(d=>d.classList.remove('active'));
-    div.classList.add('active');
+for (let exam in mcqs) {
+  const div = document.createElement("div");
+  div.textContent = exam;
+  div.addEventListener("click", () => {
+    if (div.classList.contains("active")) return;
+    document
+      .querySelectorAll(".sidebar div")
+      .forEach((d) => d.classList.remove("active"));
+    div.classList.add("active");
     loadExam(mcqs[exam], exam);
-    if(window.innerWidth<=700) sidebar.classList.remove('show');
+    if (window.innerWidth <= 700) sidebar.classList.remove("show");
   });
   sidebar.appendChild(div);
 }
 
 // Load first exam onload
-window.addEventListener('DOMContentLoaded',()=>{
-  const firstExam=Object.keys(mcqs)[0];
-  document.querySelector('.sidebar div').classList.add('active');
+window.addEventListener("DOMContentLoaded", () => {
+  const firstExam = Object.keys(mcqs)[0];
+  document.querySelector(".sidebar div").classList.add("active");
   loadExam(mcqs[firstExam], firstExam);
 });
 
-function loadExam(file, examKey){
+function loadExam(file, examKey) {
   currentExamKey = examKey;
+  currentFilter = "all"; // reset filter
   fetch(file)
-    .then(res=>res.json())
-    .then(json=>{
-      const firstHeaderObj=json.find(item=>item.header);
-      const header=firstHeaderObj?.header||[];
-      const questions=json.filter(item=>item.label);
-      questions.forEach(q=>q.selected=null);
+    .then((res) => res.json())
+    .then((json) => {
+      const firstHeaderObj = json.find((item) => item.header);
+      const header = firstHeaderObj?.header || [];
+      const questions = json.filter((item) => item.label);
+      questions.forEach((q) => (q.selected = null));
 
-      data={header,questions};
+      data = { header, questions };
 
-      // 🧠 LocalStorage: Try to restore previous state
+      // 🧠 Try to restore previous state
       const saved = localStorage.getItem(`mcq_${examKey}`);
-      if(saved){
+      if (saved) {
         try {
           const parsed = JSON.parse(saved);
           currentPage = parsed.page || 1;
-          data.questions.forEach((q,idx)=>{
-            if(parsed.selected && parsed.selected[idx]!==undefined){
+          data.questions.forEach((q, idx) => {
+            if (parsed.selected && parsed.selected[idx] !== undefined) {
               q.selected = parsed.selected[idx];
             }
           });
-        } catch(e){ console.warn("Restore failed",e); }
+        } catch (e) {
+          console.warn("Restore failed", e);
+        }
       } else {
-        currentPage=1;
+        currentPage = 1;
       }
 
       updateCounter();
-      headerDiv.innerHTML=header.map(h=>`<div>${h}</div>`).join('');
+      headerDiv.innerHTML = header.map((h) => `<div>${h}</div>`).join("");
       renderPage(currentPage);
     })
-    .catch(err=>console.error('Failed to load exam:',err));
+    .catch((err) => console.error("Failed to load exam:", err));
 }
 
-// 🧠 LocalStorage: Save progress
-function saveProgress(){
-  if(!currentExamKey) return;
-  const selected = data.questions.map(q=>q.selected);
-  localStorage.setItem(`mcq_${currentExamKey}`, JSON.stringify({
-    page: currentPage,
-    selected
-  }));
+// 🧠 Save progress
+function saveProgress() {
+  if (!currentExamKey) return;
+  const selected = data.questions.map((q) => q.selected);
+  localStorage.setItem(
+    `mcq_${currentExamKey}`,
+    JSON.stringify({
+      page: currentPage,
+      selected,
+    })
+  );
 }
 
-// Update right/wrong counter from data
-function updateCounter(){
-  let right=0, wrong=0;
-  data.questions.forEach(q=>{
-    if(q.selected){
-      if(q.selected===q.answer) right++;
+// Update right/wrong counter and add filter click
+function updateCounter() {
+  let right = 0,
+    wrong = 0;
+  data.questions.forEach((q) => {
+    if (q.selected) {
+      if (q.selected === q.answer) right++;
       else wrong++;
     }
   });
-  counterDiv.textContent=`R: ${right} | W: ${wrong}`;
-  saveProgress(); // 🧠 auto-save after counter update
+
+  counterDiv.innerHTML = `<span id="rightCount" style="cursor:pointer;">R: ${right}</span> | <span id="wrongCount" style="cursor:pointer;">W: ${wrong}</span>`;
+  saveProgress();
+
+  // 🧠 Add click filters
+  document.getElementById("rightCount").addEventListener("click", () => {
+    currentFilter = currentFilter === "right" ? "all" : "right";
+    currentPage = 1;
+    renderPage(currentPage);
+  });
+  document.getElementById("wrongCount").addEventListener("click", () => {
+    currentFilter = currentFilter === "wrong" ? "all" : "wrong";
+    currentPage = 1;
+    renderPage(currentPage);
+  });
 }
 
-function renderPage(page){
-  questionsDiv.innerHTML='';
-  const start=(page-1)*perPage;
-  const end=Math.min(start+perPage,data.questions.length);
-  const pageQuestions=data.questions.slice(start,end);
+function renderPage(page) {
+  questionsDiv.innerHTML = "";
 
-  pageQuestions.forEach((q,idx)=>{
-    const card=document.createElement('div'); card.className='question-card';
-    const label=document.createElement('div'); label.className='question-label';
-    label.textContent=`${start+idx+1}. ${q.label}`; card.appendChild(label);
+  // 🧠 Apply filter
+  let filtered = data.questions;
+  if (currentFilter === "right") {
+    filtered = data.questions.filter(
+      (q) => q.selected && q.selected === q.answer
+    );
+  }
+  if (currentFilter === "wrong") {
+    filtered = data.questions.filter(
+      (q) => q.selected && q.selected !== q.answer
+    );
+  }
 
-    const optionsDiv=document.createElement('div'); optionsDiv.className='options';
-    q.options.forEach((opt,oidx)=>{
-      const optionEl=document.createElement('div'); 
-      optionEl.className='option';
-      optionEl.textContent=opt;
+  const totalPages = Math.ceil(filtered.length / perPage);
+  const start = (page - 1) * perPage;
+  const end = Math.min(start + perPage, filtered.length);
+  const pageQuestions = filtered.slice(start, end);
 
-      const thisKey=['a','b','c','d'][oidx];
+  pageQuestions.forEach((q, idx) => {
+    const card = document.createElement("div");
+    card.className = "question-card";
+    const label = document.createElement("div");
+    label.className = "question-label";
+    label.textContent = `${start + idx + 1}. ${q.label}`;
+    card.appendChild(label);
 
-      // restore state if answered before
-      if(q.selected){
-        optionEl.classList.add('disabled');
-        if(thisKey===q.answer){
-          optionEl.classList.add('correct');
+    const optionsDiv = document.createElement("div");
+    optionsDiv.className = "options";
+    q.options.forEach((opt, oidx) => {
+      const optionEl = document.createElement("div");
+      optionEl.className = "option";
+      optionEl.textContent = opt;
+
+      const thisKey = ["a", "b", "c", "d"][oidx];
+
+      if (q.selected) {
+        optionEl.classList.add("disabled");
+        if (thisKey === q.answer) {
+          optionEl.classList.add("correct");
         }
-        if(thisKey===q.selected && q.selected!==q.answer){
-          optionEl.classList.add('wrong');
+        if (thisKey === q.selected && q.selected !== q.answer) {
+          optionEl.classList.add("wrong");
         }
       }
 
-      optionEl.addEventListener('click',()=>{
-        if(q.selected) return; // already answered, block further
-        q.selected=thisKey;
+      optionEl.addEventListener("click", () => {
+        if (q.selected) return;
+        q.selected = thisKey;
+        optionsDiv
+          .querySelectorAll(".option")
+          .forEach((o) => o.classList.add("disabled"));
 
-        optionsDiv.querySelectorAll('.option').forEach(o=>o.classList.add('disabled'));
-        if(q.selected===q.answer){
-          optionEl.classList.add('correct');
+        if (q.selected === q.answer) {
+          optionEl.classList.add("correct");
         } else {
-          optionEl.classList.add('wrong');
-          const rightBtn=optionsDiv.querySelector(`.option:nth-child(${q.answer.charCodeAt(0)-97+1})`);
-          if(rightBtn) rightBtn.classList.add('correct');
+          optionEl.classList.add("wrong");
+          const rightBtn = optionsDiv.querySelector(
+            `.option:nth-child(${q.answer.charCodeAt(0) - 97 + 1})`
+          );
+          if (rightBtn) rightBtn.classList.add("correct");
         }
-        updateCounter(); // 🧠 auto-save triggered inside
+        updateCounter();
       });
 
       optionsDiv.appendChild(optionEl);
@@ -173,78 +222,97 @@ function renderPage(page){
     card.appendChild(optionsDiv);
     questionsDiv.appendChild(card);
   });
-  renderPagination(page);
+
+  renderPagination(page, filtered.length);
 }
 
-function renderPagination(page){
-  paginationDiv.innerHTML='';
-  const totalPages = Math.ceil(data.questions.length / perPage);
+function renderPagination(page, totalQuestions) {
+  paginationDiv.innerHTML = "";
+  const totalPages = Math.ceil(totalQuestions / perPage);
 
-  const addPageBtn=(num)=>{
-    const btn=document.createElement('button');
-    btn.textContent=num;
-    if(num===page) btn.classList.add('disabled');
-    btn.addEventListener('click',()=>{
-      currentPage=num;
+  const addPageBtn = (num) => {
+    const btn = document.createElement("button");
+    btn.textContent = num;
+    if (num === page) btn.classList.add("disabled");
+    btn.addEventListener("click", () => {
+      currentPage = num;
       renderPage(currentPage);
-      saveProgress(); // 🧠 save on page change
+      saveProgress();
     });
     paginationDiv.appendChild(btn);
   };
 
-  const firstBtn=document.createElement('button');
-  firstBtn.textContent='<<';
-  firstBtn.disabled=page===1;
-  if(page===1) firstBtn.classList.add('disabled');
-  firstBtn.addEventListener('click',()=>{currentPage=1; renderPage(currentPage); saveProgress();});
+  const firstBtn = document.createElement("button");
+  firstBtn.textContent = "<<";
+  firstBtn.disabled = page === 1;
+  if (page === 1) firstBtn.classList.add("disabled");
+  firstBtn.addEventListener("click", () => {
+    currentPage = 1;
+    renderPage(currentPage);
+    saveProgress();
+  });
   paginationDiv.appendChild(firstBtn);
 
-  const prevBtn=document.createElement('button');
-  prevBtn.textContent='<';
-  prevBtn.disabled=page===1;
-  if(page===1) prevBtn.classList.add('disabled');
-  prevBtn.addEventListener('click',()=>{currentPage--; renderPage(currentPage); saveProgress();});
+  const prevBtn = document.createElement("button");
+  prevBtn.textContent = "<";
+  prevBtn.disabled = page === 1;
+  if (page === 1) prevBtn.classList.add("disabled");
+  prevBtn.addEventListener("click", () => {
+    currentPage--;
+    renderPage(currentPage);
+    saveProgress();
+  });
   paginationDiv.appendChild(prevBtn);
 
-  let start=Math.max(1, page-1);
-  let end=Math.min(totalPages, page+1);
-  for(let i=start; i<=end; i++){ addPageBtn(i); }
+  let start = Math.max(1, page - 1);
+  let end = Math.min(totalPages, page + 1);
+  for (let i = start; i <= end; i++) {
+    addPageBtn(i);
+  }
 
-  const nextBtn=document.createElement('button');
-  nextBtn.textContent='>';
-  nextBtn.disabled=page===totalPages;
-  if(page===totalPages) nextBtn.classList.add('disabled');
-  nextBtn.addEventListener('click',()=>{currentPage++; renderPage(currentPage); saveProgress();});
+  const nextBtn = document.createElement("button");
+  nextBtn.textContent = ">";
+  nextBtn.disabled = page === totalPages;
+  if (page === totalPages) nextBtn.classList.add("disabled");
+  nextBtn.addEventListener("click", () => {
+    currentPage++;
+    renderPage(currentPage);
+    saveProgress();
+  });
   paginationDiv.appendChild(nextBtn);
 
-  const lastBtn=document.createElement('button');
-  lastBtn.textContent='>>';
-  lastBtn.disabled=page===totalPages;
-  if(page===totalPages) lastBtn.classList.add('disabled');
-  lastBtn.addEventListener('click',()=>{currentPage=totalPages; renderPage(currentPage); saveProgress();});
+  const lastBtn = document.createElement("button");
+  lastBtn.textContent = ">>";
+  lastBtn.disabled = page === totalPages;
+  if (page === totalPages) lastBtn.classList.add("disabled");
+  lastBtn.addEventListener("click", () => {
+    currentPage = totalPages;
+    renderPage(currentPage);
+    saveProgress();
+  });
   paginationDiv.appendChild(lastBtn);
 
-  const jumpDiv=document.createElement('div');
-  jumpDiv.style.marginTop='10px';
+  const jumpDiv = document.createElement("div");
+  jumpDiv.style.marginTop = "10px";
 
-  const input=document.createElement('input');
-  input.type='number';
-  input.min=1;
-  input.max=totalPages;
-  input.placeholder=`${currentPage}/${totalPages}`;
-  input.style.width='100px';
-  input.style.marginRight='5px';
-  input.style.padding='5px';
-  input.style.border='1px solid #6a1b9a';
-  input.style.borderRadius='4px';
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = 1;
+  input.max = totalPages;
+  input.placeholder = `${currentPage}/${totalPages}`;
+  input.style.width = "100px";
+  input.style.marginRight = "5px";
+  input.style.padding = "5px";
+  input.style.border = "1px solid #6a1b9a";
+  input.style.borderRadius = "4px";
 
-  const jumpBtn=document.createElement('button');
+  const jumpBtn = document.createElement("button");
   jumpBtn.style.padding = "7px 16px";
-  jumpBtn.textContent='Go';
-  jumpBtn.addEventListener('click',()=>{
-    let num=parseInt(input.value,10);
-    if(!isNaN(num) && num>=1 && num<=totalPages){
-      currentPage=num;
+  jumpBtn.textContent = "Go";
+  jumpBtn.addEventListener("click", () => {
+    let num = parseInt(input.value, 10);
+    if (!isNaN(num) && num >= 1 && num <= totalPages) {
+      currentPage = num;
       renderPage(currentPage);
       saveProgress();
     }
@@ -255,57 +323,102 @@ function renderPagination(page){
   paginationDiv.appendChild(jumpDiv);
 }
 
+
 // Floating Reset button
-const resetBtn = document.createElement('button');
-resetBtn.textContent = '⟲ Reset';
-resetBtn.style.position = 'fixed';
-resetBtn.style.bottom = '225px';
-resetBtn.style.left = '0';
-resetBtn.style.background = '#d32f2f';
-resetBtn.style.color = '#fff';
-resetBtn.style.border = 'none';
-resetBtn.style.padding = '6px 12px';
-resetBtn.style.cursor = 'pointer';
-resetBtn.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
-resetBtn.style.borderTopRightRadius = '10px';
-resetBtn.style.borderBottomRightRadius = '10px';
-resetBtn.style.zIndex = '9999';
+const resetBtn = document.createElement("button");
+resetBtn.textContent = "⟲ Reset";
+resetBtn.style.position = "fixed";
+resetBtn.style.bottom = "225px";
+resetBtn.style.left = "0";
+resetBtn.style.background = "#d32f2f";
+resetBtn.style.color = "#fff";
+resetBtn.style.border = "none";
+resetBtn.style.padding = "6px 12px";
+resetBtn.style.cursor = "pointer";
+resetBtn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+resetBtn.style.borderTopRightRadius = "10px";
+resetBtn.style.borderBottomRightRadius = "10px";
+resetBtn.style.zIndex = "9999";
 document.body.appendChild(resetBtn);
 
-// 🧠 Reset click action
-resetBtn.addEventListener('click', () => {
+// Reset click
+resetBtn.addEventListener("click", () => {
   if (!currentExamKey) return;
-  if (!confirm("Are you sure you want to reset this exam progress?")) return;
 
-  localStorage.removeItem(`mcq_${currentExamKey}`);
-  data.questions.forEach(q => q.selected = null);
-  currentPage = 1;
-  updateCounter();
-  renderPage(currentPage);
+  const choice = prompt(
+    "Type 'all' to reset entire exam OR 'this' to reset this page only:"
+  );
+
+  if (!choice) return;
+
+  if (choice.toLowerCase() === "all") {
+    if (!confirm("Are you sure you want to reset ALL pages for this exam?"))
+      return;
+
+    // 🧠 Reset ALL progress
+    localStorage.removeItem(`mcq_${currentExamKey}`);
+    data.questions.forEach((q) => (q.selected = null));
+    currentPage = 1;
+    currentFilter = "all";
+    updateCounter();
+    renderPage(currentPage);
+  } 
+  
+  else if (choice.toLowerCase() === "this") {
+    if (!confirm("Reset this page only?")) return;
+
+    // 🧠 Reset only questions of this page
+    let filtered = data.questions;
+    if (currentFilter === "right") {
+      filtered = data.questions.filter(
+        (q) => q.selected && q.selected === q.answer
+      );
+    } else if (currentFilter === "wrong") {
+      filtered = data.questions.filter(
+        (q) => q.selected && q.selected !== q.answer
+      );
+    }
+
+    const start = (currentPage - 1) * perPage;
+    const end = Math.min(start + perPage, filtered.length);
+    const pageQuestions = filtered.slice(start, end);
+
+    pageQuestions.forEach((pq) => {
+      pq.selected = null;
+    });
+
+    saveProgress();
+    updateCounter();
+    renderPage(currentPage);
+  } 
+  
+  else {
+    alert("Invalid input! Type only 'all' or 'this'.");
+  }
 });
 
-// Floating Go Top/Bottom button (same)
-const scrollBtn = document.createElement('button');
-scrollBtn.textContent = '↓ Bottom';
-scrollBtn.style.position = 'fixed';
-scrollBtn.style.bottom = '20px';
-scrollBtn.style.right = '0';
-scrollBtn.style.background = '#6a1b9a';
-scrollBtn.style.color = '#fff';
-scrollBtn.style.border = 'none';
-scrollBtn.style.padding = '6px 11px';
-scrollBtn.style.cursor = 'pointer';
-scrollBtn.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
-scrollBtn.style.borderTopLeftRadius = '10px';
-scrollBtn.style.borderBottomLeftRadius = '10px';
-scrollBtn.style.zIndex = '9999';
+// Floating Go Top/Bottom button
+const scrollBtn = document.createElement("button");
+scrollBtn.textContent = "↓ Bottom";
+scrollBtn.style.position = "fixed";
+scrollBtn.style.bottom = "20px";
+scrollBtn.style.right = "0";
+scrollBtn.style.background = "#6a1b9a";
+scrollBtn.style.color = "#fff";
+scrollBtn.style.border = "none";
+scrollBtn.style.padding = "6px 11px";
+scrollBtn.style.cursor = "pointer";
+scrollBtn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+scrollBtn.style.borderTopLeftRadius = "10px";
+scrollBtn.style.borderBottomLeftRadius = "10px";
+scrollBtn.style.zIndex = "9999";
 document.body.appendChild(scrollBtn);
 
-scrollBtn.addEventListener('click', () => {
-  if (scrollBtn.textContent === '↓ Bottom') {
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+scrollBtn.addEventListener("click", () => {
+  if (scrollBtn.textContent === "↓ Bottom") {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   } else {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 });
 
@@ -315,12 +428,12 @@ function updateBtnLabel() {
   const scrolledPercent = (scrollTop / docHeight) * 100;
 
   if (scrolledPercent > 10) {
-    scrollBtn.textContent = '↑ Top';
+    scrollBtn.textContent = "↑ Top";
   } else {
-    scrollBtn.textContent = '↓ Bottom';
+    scrollBtn.textContent = "↓ Bottom";
   }
 }
-window.addEventListener('scroll', updateBtnLabel);
+window.addEventListener("scroll", updateBtnLabel);
 
 // Register SW
 // if('serviceWorker' in navigator){

@@ -22,7 +22,7 @@
   </div>
 </div>
 
-<div class="counter" id="counter">R: 0 | W: 0</div>
+<div class="counter" id="counter"></div>
 
 <script>
 const mcqs = {
@@ -33,7 +33,7 @@ const mcqs = {
 let data = { header: [], questions: [] },
   currentPage = 1,
   currentExamKey = null,
-  currentFilter = "all"; // 🧠 all | right | wrong
+  currentFilter = "all"; // all | right | wrong | fav
 const perPage = 50;
 
 const sidebar = document.getElementById("sidebar");
@@ -43,20 +43,33 @@ const paginationDiv = document.getElementById("pagination");
 const counterDiv = document.getElementById("counter");
 const hamburger = document.getElementById("hamburger");
 
-// Hamburger toggle
-hamburger.addEventListener("click", () => {
+// ==================== HAMBURGER ====================
+// Toggle sidebar when clicking hamburger
+hamburger.addEventListener("click", (e) => {
+  e.stopPropagation(); // Prevent the click from bubbling up to document
   sidebar.classList.toggle("show");
 });
 
-// Build sidebar
+// Close sidebar when clicking outside
+document.addEventListener("click", (e) => {
+  // Check if sidebar is open
+  if (!sidebar.classList.contains("show")) return;
+
+  // If clicked element is NOT sidebar or hamburger, close it
+  if (!sidebar.contains(e.target) && e.target !== hamburger) {
+    sidebar.classList.remove("show");
+  }
+});
+
+
+
+// ==================== SIDEBAR ====================
 for (let exam in mcqs) {
   const div = document.createElement("div");
   div.textContent = exam;
   div.addEventListener("click", () => {
     if (div.classList.contains("active")) return;
-    document
-      .querySelectorAll(".sidebar div")
-      .forEach((d) => d.classList.remove("active"));
+    document.querySelectorAll(".sidebar div").forEach((d) => d.classList.remove("active"));
     div.classList.add("active");
     loadExam(mcqs[exam], exam);
     if (window.innerWidth <= 700) sidebar.classList.remove("show");
@@ -64,16 +77,16 @@ for (let exam in mcqs) {
   sidebar.appendChild(div);
 }
 
-// Load first exam onload
 window.addEventListener("DOMContentLoaded", () => {
   const firstExam = Object.keys(mcqs)[0];
   document.querySelector(".sidebar div").classList.add("active");
   loadExam(mcqs[firstExam], firstExam);
 });
 
+// ==================== LOAD EXAM ====================
 function loadExam(file, examKey) {
   currentExamKey = examKey;
-  currentFilter = "all"; // reset filter
+  currentFilter = "all";
   fetch(file)
     .then((res) => res.json())
     .then((json) => {
@@ -84,7 +97,6 @@ function loadExam(file, examKey) {
 
       data = { header, questions };
 
-      // 🧠 Try to restore previous state
       const saved = localStorage.getItem(`mcq_${examKey}`);
       if (saved) {
         try {
@@ -98,9 +110,7 @@ function loadExam(file, examKey) {
         } catch (e) {
           console.warn("Restore failed", e);
         }
-      } else {
-        currentPage = 1;
-      }
+      } else currentPage = 1;
 
       updateCounter();
       headerDiv.innerHTML = header.map((h) => `<div>${h}</div>`).join("");
@@ -109,60 +119,126 @@ function loadExam(file, examKey) {
     .catch((err) => console.error("Failed to load exam:", err));
 }
 
-// 🧠 Save progress
+// ==================== SAVE PROGRESS ====================
 function saveProgress() {
   if (!currentExamKey) return;
   const selected = data.questions.map((q) => q.selected);
-  localStorage.setItem(
-    `mcq_${currentExamKey}`,
-    JSON.stringify({
-      page: currentPage,
-      selected,
-    })
-  );
+  localStorage.setItem(`mcq_${currentExamKey}`, JSON.stringify({ page: currentPage, selected }));
 }
 
-// Update right/wrong counter and add filter click
+// ==================== FAV LOCAL STORAGE ====================
+function getFavs() {
+  try {
+    return JSON.parse(localStorage.getItem(`fav_${currentExamKey}`)) || [];
+  } catch {
+    return [];
+  }
+}
+function saveFavs(list) {
+  localStorage.setItem(`fav_${currentExamKey}`, JSON.stringify(list));
+}
+
+// ==================== COUNTER ====================
 function updateCounter() {
   let right = 0,
     wrong = 0;
+
   data.questions.forEach((q) => {
-    if (q.selected) {
-      if (q.selected === q.answer) right++;
-      else wrong++;
-    }
+    if (q.selected) q.selected === q.answer ? right++ : wrong++;
   });
 
-  counterDiv.innerHTML = `<span id="rightCount" style="cursor:pointer;">R: ${right}</span> | <span id="wrongCount" style="cursor:pointer;">W: ${wrong}</span>`;
+  const favs = getFavs();
+  const favCount = favs.length;
+
+  counterDiv.innerHTML = `
+      <span id="rightCount" style="cursor:pointer; display:flex; align-items:center; gap:4px; color:#27ae60; font-weight:bold;">
+        <i class="fa fa-check-circle" aria-hidden="true"></i>${right}
+      </span>
+      <span id="wrongCount" style="cursor:pointer; display:flex; align-items:center; gap:4px; color:#e74c3c; font-weight:bold;">
+        <i class="fa fa-times-circle" aria-hidden="true"></i>${wrong}
+      </span>
+      <span id="favFilter" style="cursor:pointer; display:flex; align-items:center; gap:4px; color:#f1c40f; font-weight:bold;">
+        <i class="fa fa-heart"></i>${favCount}
+      </span>
+  `;
+
+  counterDiv.style.background = "#2c3e50";
+  counterDiv.style.display = "flex";
+  counterDiv.style.gap = "6px";
+  counterDiv.style.alignItems = "center";
+  counterDiv.style.padding = "6px 8px";
+
+
+
   saveProgress();
 
-  // 🧠 Add click filters
-  document.getElementById("rightCount").addEventListener("click", () => {
-    currentFilter = currentFilter === "right" ? "all" : "right";
+  document.getElementById("rightCount").onclick = () => {
+    currentFilter = "right";
     currentPage = 1;
     renderPage(currentPage);
-  });
-  document.getElementById("wrongCount").addEventListener("click", () => {
-    currentFilter = currentFilter === "wrong" ? "all" : "wrong";
+    showClearFilterButton();
+  };
+  document.getElementById("wrongCount").onclick = () => {
+    currentFilter = "wrong";
     currentPage = 1;
     renderPage(currentPage);
-  });
+    showClearFilterButton();
+  };
+  document.getElementById("favFilter").onclick = () => {
+    currentFilter = "fav";
+    currentPage = 1;
+    renderPage(currentPage);
+    showClearFilterButton();
+  };
 }
 
+// ==================== CLEAR FILTER BUTTON ====================
+let clearFilterBtn = document.createElement("button");
+clearFilterBtn.textContent = "✖ Clear Filter";
+Object.assign(clearFilterBtn.style, {
+  position: "fixed",
+  bottom: "80px",
+  right: "0",
+  background: "#00796b",
+  color: "#fff",
+  border: "none",
+  padding: "4px 10px",
+  cursor: "pointer",
+  borderTopLeftRadius: "10px",
+  borderBottomLeftRadius: "10px",
+  zIndex: "99",
+  display: "none",
+  fontSize: "12px"
+});
+document.body.appendChild(clearFilterBtn);
+
+clearFilterBtn.addEventListener("click", () => {
+  currentFilter = "all";
+  currentPage = 1;
+  renderPage(currentPage);
+  hideClearFilterButton();
+});
+
+function showClearFilterButton() {
+  clearFilterBtn.style.display = "block";
+}
+function hideClearFilterButton() {
+  clearFilterBtn.style.display = "none";
+}
+
+// ==================== RENDER PAGE ====================
 function renderPage(page) {
   questionsDiv.innerHTML = "";
 
-  // 🧠 Apply filter
+  if (currentFilter === "all") hideClearFilterButton();
+  else showClearFilterButton();
+
   let filtered = data.questions;
-  if (currentFilter === "right") {
-    filtered = data.questions.filter(
-      (q) => q.selected && q.selected === q.answer
-    );
-  }
-  if (currentFilter === "wrong") {
-    filtered = data.questions.filter(
-      (q) => q.selected && q.selected !== q.answer
-    );
+  if (currentFilter === "right") filtered = data.questions.filter((q) => q.selected && q.selected === q.answer);
+  if (currentFilter === "wrong") filtered = data.questions.filter((q) => q.selected && q.selected !== q.answer);
+  if (currentFilter === "fav") {
+    const favs = getFavs();
+    filtered = data.questions.filter((q) => favs.includes(q.label));
   }
 
   const totalPages = Math.ceil(filtered.length / perPage);
@@ -170,12 +246,38 @@ function renderPage(page) {
   const end = Math.min(start + perPage, filtered.length);
   const pageQuestions = filtered.slice(start, end);
 
+  const favList = getFavs();
+
   pageQuestions.forEach((q, idx) => {
     const card = document.createElement("div");
     card.className = "question-card";
+
     const label = document.createElement("div");
     label.className = "question-label";
     label.textContent = `${start + idx + 1}. ${q.label}`;
+
+    // 💖 Heart button
+    const heart = document.createElement("span");
+    heart.className = "heart-btn";
+    heart.innerHTML = favList.includes(q.label) ? "❤️" : "🤍";
+    heart.style.cursor = "pointer";
+    heart.style.marginLeft = "8px";
+    heart.style.fontSize = "20px";
+    heart.onclick = (e) => {
+      e.stopPropagation();
+      let favs = getFavs();
+      if (favs.includes(q.label)) {
+        favs = favs.filter((f) => f !== q.label);
+        heart.innerHTML = "🤍";
+      } else {
+        favs.push(q.label);
+        heart.innerHTML = "❤️";
+      }
+      saveFavs(favs);
+      updateCounter();
+    };
+
+    label.appendChild(heart);
     card.appendChild(label);
 
     const optionsDiv = document.createElement("div");
@@ -189,24 +291,16 @@ function renderPage(page) {
 
       if (q.selected) {
         optionEl.classList.add("disabled");
-        if (thisKey === q.answer) {
-          optionEl.classList.add("correct");
-        }
-        if (thisKey === q.selected && q.selected !== q.answer) {
-          optionEl.classList.add("wrong");
-        }
+        if (thisKey === q.answer) optionEl.classList.add("correct");
+        if (thisKey === q.selected && q.selected !== q.answer) optionEl.classList.add("wrong");
       }
 
       optionEl.addEventListener("click", () => {
         if (q.selected) return;
         q.selected = thisKey;
-        optionsDiv
-          .querySelectorAll(".option")
-          .forEach((o) => o.classList.add("disabled"));
-
-        if (q.selected === q.answer) {
-          optionEl.classList.add("correct");
-        } else {
+        optionsDiv.querySelectorAll(".option").forEach((o) => o.classList.add("disabled"));
+        if (q.selected === q.answer) optionEl.classList.add("correct");
+        else {
           optionEl.classList.add("wrong");
           const rightBtn = optionsDiv.querySelector(
             `.option:nth-child(${q.answer.charCodeAt(0) - 97 + 1})`
@@ -226,233 +320,130 @@ function renderPage(page) {
   renderPagination(page, filtered.length);
 }
 
+// ==================== PAGINATION ====================
 function renderPagination(page, totalQuestions) {
   paginationDiv.innerHTML = "";
   const totalPages = Math.ceil(totalQuestions / perPage);
 
-  const addPageBtn = (num) => {
-    const btn = document.createElement("button");
-    btn.textContent = num;
-    if (num === page) btn.classList.add("disabled");
-    btn.addEventListener("click", () => {
-      currentPage = num;
-      renderPage(currentPage);
-      saveProgress();
-    });
-    paginationDiv.appendChild(btn);
+  const makeBtn = (txt, click, disabled) => {
+    const b = document.createElement("button");
+    b.textContent = txt;
+    if (disabled) b.classList.add("disabled");
+    b.onclick = click;
+    paginationDiv.appendChild(b);
   };
 
-  const firstBtn = document.createElement("button");
-  firstBtn.textContent = "<<";
-  firstBtn.disabled = page === 1;
-  if (page === 1) firstBtn.classList.add("disabled");
-  firstBtn.addEventListener("click", () => {
-    currentPage = 1;
-    renderPage(currentPage);
-    saveProgress();
-  });
-  paginationDiv.appendChild(firstBtn);
-
-  const prevBtn = document.createElement("button");
-  prevBtn.textContent = "<";
-  prevBtn.disabled = page === 1;
-  if (page === 1) prevBtn.classList.add("disabled");
-  prevBtn.addEventListener("click", () => {
-    currentPage--;
-    renderPage(currentPage);
-    saveProgress();
-  });
-  paginationDiv.appendChild(prevBtn);
-
-  let start = Math.max(1, page - 1);
-  let end = Math.min(totalPages, page + 1);
-  for (let i = start; i <= end; i++) {
-    addPageBtn(i);
+  makeBtn("<<", () => { currentPage = 1; renderPage(currentPage); saveProgress(); }, page === 1);
+  makeBtn("<", () => { currentPage--; renderPage(currentPage); saveProgress(); }, page === 1);
+  for (let i = Math.max(1, page - 1); i <= Math.min(totalPages, page + 1); i++) {
+    makeBtn(i, () => { currentPage = i; renderPage(currentPage); saveProgress(); }, i === page);
   }
-
-  const nextBtn = document.createElement("button");
-  nextBtn.textContent = ">";
-  nextBtn.disabled = page === totalPages;
-  if (page === totalPages) nextBtn.classList.add("disabled");
-  nextBtn.addEventListener("click", () => {
-    currentPage++;
-    renderPage(currentPage);
-    saveProgress();
-  });
-  paginationDiv.appendChild(nextBtn);
-
-  const lastBtn = document.createElement("button");
-  lastBtn.textContent = ">>";
-  lastBtn.disabled = page === totalPages;
-  if (page === totalPages) lastBtn.classList.add("disabled");
-  lastBtn.addEventListener("click", () => {
-    currentPage = totalPages;
-    renderPage(currentPage);
-    saveProgress();
-  });
-  paginationDiv.appendChild(lastBtn);
-
-  const jumpDiv = document.createElement("div");
-  jumpDiv.style.marginTop = "10px";
-
-  const input = document.createElement("input");
-  input.type = "number";
-  input.min = 1;
-  input.max = totalPages;
-  input.placeholder = `${currentPage}/${totalPages}`;
-  input.style.width = "100px";
-  input.style.marginRight = "5px";
-  input.style.padding = "5px";
-  input.style.border = "1px solid #6a1b9a";
-  input.style.borderRadius = "4px";
-
-  const jumpBtn = document.createElement("button");
-  jumpBtn.style.padding = "7px 16px";
-  jumpBtn.textContent = "Go";
-  jumpBtn.addEventListener("click", () => {
-    let num = parseInt(input.value, 10);
-    if (!isNaN(num) && num >= 1 && num <= totalPages) {
-      currentPage = num;
-      renderPage(currentPage);
-      saveProgress();
-    }
-  });
-
-  jumpDiv.appendChild(input);
-  jumpDiv.appendChild(jumpBtn);
-  paginationDiv.appendChild(jumpDiv);
+  makeBtn(">", () => { currentPage++; renderPage(currentPage); saveProgress(); }, page === totalPages);
+  makeBtn(">>", () => { currentPage = totalPages; renderPage(currentPage); saveProgress(); }, page === totalPages);
 }
 
-
-// Floating Reset button
+// ==================== RESET BUTTON ====================
 const resetBtn = document.createElement("button");
 resetBtn.textContent = "⟲ Reset";
-resetBtn.style.position = "fixed";
-resetBtn.style.bottom = "225px";
-resetBtn.style.left = "0";
-resetBtn.style.background = "#d32f2f";
-resetBtn.style.color = "#fff";
-resetBtn.style.border = "none";
-resetBtn.style.padding = "6px 12px";
-resetBtn.style.cursor = "pointer";
-resetBtn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
-resetBtn.style.borderTopRightRadius = "10px";
-resetBtn.style.borderBottomRightRadius = "10px";
-resetBtn.style.zIndex = "99";
+Object.assign(resetBtn.style, {
+  position: "fixed",
+  bottom: "225px",
+  left: "0",
+  background: "#d32f2f",
+  color: "#fff",
+  border: "none",
+  padding: "6px 12px",
+  cursor: "pointer",
+  borderTopRightRadius: "10px",
+  borderBottomRightRadius: "10px",
+  zIndex: "99",
+});
 document.body.appendChild(resetBtn);
 
-// Reset click
-resetBtn.addEventListener("click", () => {
+// Not remove fav on reset 
+// resetBtn.onclick = () => {
+//   if (!currentExamKey) return;
+//   const choice = prompt("Type 'all' to reset entire exam OR 'this' to reset this page only:");
+//   if (!choice) return;
+
+//   if (choice.toLowerCase() === "all") {
+//     if (!confirm("Reset ALL pages for this exam?")) return;
+//     localStorage.removeItem(`mcq_${currentExamKey}`);
+//     data.questions.forEach((q) => (q.selected = null));
+//     currentPage = 1;
+//     currentFilter = "all";
+//     updateCounter();
+//     renderPage(currentPage);
+//   } else if (choice.toLowerCase() === "this") {
+//     if (!confirm("Reset this page only?")) return;
+//     const start = (currentPage - 1) * perPage;
+//     const end = Math.min(start + perPage, data.questions.length);
+//     data.questions.slice(start, end).forEach((pq) => (pq.selected = null));
+//     saveProgress();
+//     updateCounter();
+//     renderPage(currentPage);
+//   } else alert("Invalid input!");
+// };
+
+// Reset all also fav 
+resetBtn.onclick = () => {
   if (!currentExamKey) return;
-
-  const choice = prompt(
-    "Type 'all' to reset entire exam OR 'this' to reset this page only:"
-  );
-
+  const choice = prompt("Type 'all' to reset entire exam OR 'this' to reset this page only:");
   if (!choice) return;
 
   if (choice.toLowerCase() === "all") {
-    if (!confirm("Are you sure you want to reset ALL pages for this exam?"))
-      return;
-
-    // 🧠 Reset ALL progress
+    if (!confirm("Reset ALL pages and favorites for this exam?")) return;
+    // Clear answers
     localStorage.removeItem(`mcq_${currentExamKey}`);
     data.questions.forEach((q) => (q.selected = null));
+    // Clear favorites
+    localStorage.removeItem(`fav_${currentExamKey}`);
+
     currentPage = 1;
     currentFilter = "all";
     updateCounter();
     renderPage(currentPage);
-  } 
-  
-  else if (choice.toLowerCase() === "this") {
-    if (!confirm("Reset this page only?")) return;
-
-    // 🧠 Reset only questions of this page
-    let filtered = data.questions;
-    if (currentFilter === "right") {
-      filtered = data.questions.filter(
-        (q) => q.selected && q.selected === q.answer
-      );
-    } else if (currentFilter === "wrong") {
-      filtered = data.questions.filter(
-        (q) => q.selected && q.selected !== q.answer
-      );
-    }
-
+  } else if (choice.toLowerCase() === "this") {
+    if (!confirm("Reset this page and favorites for this exam?")) return;
     const start = (currentPage - 1) * perPage;
-    const end = Math.min(start + perPage, filtered.length);
-    const pageQuestions = filtered.slice(start, end);
-
-    pageQuestions.forEach((pq) => {
-      pq.selected = null;
-    });
+    const end = Math.min(start + perPage, data.questions.length);
+    // Clear answers for current page
+    data.questions.slice(start, end).forEach((pq) => (pq.selected = null));
+    // Clear all favorites for the exam
+    localStorage.removeItem(`fav_${currentExamKey}`);
 
     saveProgress();
     updateCounter();
     renderPage(currentPage);
-  } 
-  
-  else {
-    alert("Invalid input! Type only 'all' or 'this'.");
-  }
-});
+  } else alert("Invalid input!");
+};
 
-// Floating Go Top/Bottom button
+// ==================== SCROLL BUTTON ====================
 const scrollBtn = document.createElement("button");
 scrollBtn.textContent = "↓ Bottom";
-scrollBtn.style.position = "fixed";
-scrollBtn.style.bottom = "20px";
-scrollBtn.style.right = "0";
-scrollBtn.style.background = "#6a1b9a";
-scrollBtn.style.color = "#fff";
-scrollBtn.style.border = "none";
-scrollBtn.style.padding = "6px 11px";
-scrollBtn.style.cursor = "pointer";
-scrollBtn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
-scrollBtn.style.borderTopLeftRadius = "10px";
-scrollBtn.style.borderBottomLeftRadius = "10px";
-scrollBtn.style.zIndex = "99";
+Object.assign(scrollBtn.style, {
+  position: "fixed",
+  bottom: "20px",
+  right: "0",
+  background: "#6a1b9a",
+  color: "#fff",
+  border: "none",
+  padding: "6px 11px",
+  cursor: "pointer",
+  borderTopLeftRadius: "10px",
+  borderBottomLeftRadius: "10px",
+  zIndex: "99",
+});
 document.body.appendChild(scrollBtn);
 
 scrollBtn.addEventListener("click", () => {
-  if (scrollBtn.textContent === "↓ Bottom") {
-    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-  } else {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
+  if (scrollBtn.textContent === "↓ Bottom") window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  else window.scrollTo({ top: 0, behavior: "smooth" });
 });
-
-function updateBtnLabel() {
-  const scrollTop = window.scrollY;
-  const docHeight = document.body.scrollHeight - window.innerHeight;
-  const scrolledPercent = (scrollTop / docHeight) * 100;
-
-  if (scrolledPercent > 10) {
-    scrollBtn.textContent = "↑ Top";
-  } else {
-    scrollBtn.textContent = "↓ Bottom";
-  }
-}
-window.addEventListener("scroll", updateBtnLabel);
-
-// Register SW
-// if('serviceWorker' in navigator){
-//   navigator.serviceWorker.register('./sw.js')
-//     .then(reg=>{
-//       console.log('SW registered', reg);
-
-//       function sendMCQs(){
-//         if(reg.active){
-//           reg.active.postMessage({type:'CACHE_MCQS', mcqs:Object.values(mcqs)});
-//         } else {
-//           navigator.serviceWorker.ready.then(r=>r.active.postMessage({type:'CACHE_MCQS', mcqs:Object.values(mcqs)}));
-//         }
-//       }
-
-//       sendMCQs();
-//     })
-//     .catch(err=>console.error('SW registration failed',err));
-// }
+window.addEventListener("scroll", () => {
+  const scrolled = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+  scrollBtn.textContent = scrolled > 0.1 ? "↑ Top" : "↓ Bottom";
+});
 </script>
 
 </body>
